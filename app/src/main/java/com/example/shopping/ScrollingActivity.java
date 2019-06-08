@@ -2,6 +2,7 @@ package com.example.shopping;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.app.DownloadManager;
 import android.arch.persistence.room.ColumnInfo;
 import android.arch.persistence.room.Dao;
 import android.arch.persistence.room.Database;
@@ -21,6 +22,7 @@ import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 //import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
@@ -35,6 +37,19 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -55,6 +70,35 @@ class Item
     public boolean itempurchased;
 }
 
+@Entity
+class UserInfo
+{
+    @PrimaryKey
+    @NonNull
+    public String username;
+
+    @ColumnInfo
+    public String password;
+}
+
+
+@Dao
+interface UserInfoDao {
+    @Query("SELECT * FROM userinfo")
+    List<UserInfo> getAll();
+
+    @Query("SELECT * FROM userinfo WHERE username LIKE :n LIMIT 1")
+    UserInfo findByName(String n);
+
+    @Insert
+    void insertAll(UserInfo... users);
+
+    @Delete
+    void delete(UserInfo user);
+}
+
+
+
 // This is the class used to load from the database
 @Dao
 interface ItemDao {
@@ -72,10 +116,11 @@ interface ItemDao {
 }
 
 //This is the database class
-@Database(entities = {Item.class}, version=1, exportSchema = false)
+@Database(entities = {Item.class, UserInfo.class}, version=1, exportSchema = false)
 abstract class AppDatabase extends RoomDatabase
 {
     public abstract ItemDao itemDao();
+    public abstract UserInfoDao userInfoDao();
 }
 
 public class ScrollingActivity extends AppCompatActivity implements View.OnClickListener{
@@ -87,8 +132,18 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
             m_imageResource = imageResource;
             m_description = description;
             m_cost = cost;
-            m_purchased =  false;
+            m_purchased = false;
             m_date = date;
+        }
+        public ShopData(String n, String o, String d, int c)
+        {
+            m_name = n;
+            try{
+                Field idField = R.drawable.class.getDeclaredField(o);
+                m_imageResource = ((Field) idField).getInt(idField);
+            } catch (Exception e) {
+
+            }
         }
 
         public String m_name;
@@ -103,27 +158,27 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
     public static ScrollingActivity instance = null;
 
 
-    ShopData m_data[] =
-    {
-        new ShopData("Dog", R.drawable.dog, "Cute puppy", 70, new Date(2019, 6, 1)),
-        new ShopData("Carrot", R.drawable.carrot, "Organic", 5, new Date(2019, 5, 11)),
-        new ShopData("Bone", R.drawable.bone, "Good chew", 14, new Date(2018, 6, 1)),
-        new ShopData("Flame", R.drawable.flame, "Very hot", 100, new Date(2019, 6, 1)),
-        new ShopData("Grapes", R.drawable.grapes, "Sweet sweet", 5, new Date(2018, 3, 1)),
-        new ShopData("House", R.drawable.house, "Toy house (not Lego)", 15, new Date(2018, 2, 1)),
-        new ShopData("Lamp", R.drawable.lamp, "It functions", 10, new Date(2018, 4, 11)),
-        new ShopData("Mouse", R.drawable.mouse, "Good cat snack", 3, new Date(2018, 4, 20)),
-        new ShopData("Nail", R.drawable.nail, "Just nail", 2, new Date(2019, 4, 15)),
-        new ShopData("Penguin", R.drawable.penguin, "Not real", 9, new Date(2018, 11, 1)),
-        new ShopData("Rocks", R.drawable.rocks, "Hard", 25, new Date(2018, 12, 31)),
-        new ShopData("Star", R.drawable.star, "Lighten up your sky", 90, new Date(2018, 6, 1)),
-        new ShopData("Toad", R.drawable.toad, "Not ugly at all", 12, new Date(2018, 6, 1)),
-        new ShopData("Van", R.drawable.van, "You can live in it!", 1000, new Date(2018, 6, 1)),
-        new ShopData("Wheat", R.drawable.wheat, "Not gluten free", 10, new Date(2018, 6, 1)),
-        new ShopData("Yak", R.drawable.yak, "Brings good luck", 28, new Date(2018, 6, 1))
+    ArrayList<ShopData> m_data = new ArrayList<ShopData>(
+        Arrays.asList(
+            new ShopData("Dog", "dog", "Cute puppy", 70),
+            new ShopData("Carrot", "carrot", "Organic", 5),
+            new ShopData("Bone", "bone", "Good chew", 14),
+            new ShopData("Flame", "flame", "Very hot", 100),
+            new ShopData("Grapes", "grapes", "Sweet sweet", 5),
+            new ShopData("House", "house", "Toy house (not Lego)", 15),
+            new ShopData("Lamp", "lamp", "It functions", 10),
+            new ShopData("Mouse", "mouse", "Good cat snack", 3),
+            new ShopData("Nail", "nail", "Just nail", 2),
+            new ShopData("Penguin", "penguin", "Not real", 9),
+            new ShopData("Rocks", "rocks", "Hard", 25),
+            new ShopData("Star", "star", "Lighten up your sky", 90),
+            new ShopData("Toad", "toad", "Not ugly at all", 12),
+            new ShopData("Van", "van", "You can live in it!", 1000),
+            new ShopData("Wheat", "wheat", "Not gluten free", 10),
+            new ShopData("Yak", "yak", "Brings good luck", 28)
 
 
-    };
+            ));
 
     public CustomDialogClass customDialog = null;
     private  SharedPreferences preferences = null;
@@ -154,6 +209,58 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
     private RadioGroup radioGroup;
     private RadioButton byName, byCost;
 
+    public void populate()
+    {
+        Thread load = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < m_data.size(); ++i)
+                {
+                    Item item_ = db.itemDao().findByName(m_data.get(i).m_name);
+                    if (item_ != null && item_.itempurchased)
+                    {
+                        continue;
+                    }
+                    LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
+
+                    final View myShopItem = inflater.inflate(R.layout.shop_item, null);
+                    final int tmp = i;
+
+                    View.OnClickListener click = new View.OnClickListener() {
+                        public int id = tmp;
+
+                        @Override
+
+                        public void onClick(View v) {
+                            ScrollingActivity.instance.ShopClicked(v, id);
+
+                        }
+
+                    };
+
+                    Button textButton = myShopItem.findViewById(R.id.button0);
+                    textButton.setText(m_data.get(i).m_name);
+                    ImageButton imageButton = myShopItem.findViewById(R.id.imageButton0);
+                    imageButton.setImageResource(m_data.get(i).m_imageResource);
+                    imageButton.setOnClickListener(click);
+
+                    final LinearLayout layout = findViewById(R.id.myView);
+                    ScrollingActivity.instance.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            layout.addView(myShopItem);
+                        }
+
+                    });
+                }
+
+
+            }
+
+        });
+        load.start() ;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
@@ -166,6 +273,7 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
 
         db = Room.databaseBuilder(this, AppDatabase.class,
                 "ItemDatabase").build();
+
 
         signIn = (Button) findViewById(R.id.log_in);
         signOut = (Button) findViewById(R.id.sign_out);
@@ -183,11 +291,11 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
         signOut.setOnClickListener(this);
 
         //sort
-        sort = (Button) findViewById(R.id.sort);
-        sort.setOnClickListener(this);
-        byName = findViewById(R.id.sortName);
-        byCost = findViewById(R.id.sortCost);
-        radioGroup = (RadioGroup) findViewById(R.id.sortGroup);
+//        sort = (Button) findViewById(R.id.sort);
+//        sort.setOnClickListener(this);
+//        byName = findViewById(R.id.sortName);
+//        byCost = findViewById(R.id.sortCost);
+//        radioGroup = (RadioGroup) findViewById(R.id.sortGroup);
 
 
 
@@ -199,130 +307,118 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
 
         customDialog = new CustomDialogClass(this);
 
-        Thread load = new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
-                for (int i = 0; i < m_data.length; ++i) {
-                    if (m_data[i].m_purchased) {
-                        continue;
+        RequestQueue queue = Volley.newRequestQueue(ScrollingActivity.instance);
+        String url = "http://10.0.2.2:5005/list";
+
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
+                            JSONObject reader = new JSONObject(response);
+                            JSONArray lst = reader.getJSONArray("list");
+                            for (int i = 0; i < lst.length(); ++i) {
+                                JSONObject obj = lst.getJSONObject(i);
+                                String name = obj.getString("name");
+                                String image = obj.getString("image");
+                                String desc = obj.getString("description");
+                                int cost = obj.getInt("cost");
+                                m_data.add(new ShopData(name, image, desc, cost));
+
+                            }
+                        } catch (JSONException e) {
+                        }
+                        populate();
                     }
-                    final View myShopItem = inflater.inflate(R.layout.shop_item, null);
-                    final int tmp = i;
+                },
 
-                    View.OnClickListener click = new View.OnClickListener() {
-                        public int id = tmp;
-                        @Override
-
-                        public void onClick(View v)
-                        {
-                            ScrollingActivity.instance.ShopClicked(v,id);
-
-                        }
-
-                    };
-
-                    Button textButton = myShopItem.findViewById(R.id.button0);
-                    textButton.setText(m_data[i].m_name);
-                    ImageButton imageButton = myShopItem .findViewById(R.id.imageButton0);
-                    imageButton.setImageResource(m_data[i].m_imageResource) ;
-                    imageButton.setOnClickListener(click);
-
-                    final LinearLayout layout =findViewById(R.id.myView);
-                    ScrollingActivity.instance.runOnUiThread(new Runnable(){
-                        @Override
-                        public void run(){
-                            layout.addView(myShopItem);
-                        }
-
-                    });
-                }
-
-
-            }
-
-        });
-        load.start() ;
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        populate();
+                    }
+                });
+        queue.add(stringRequest);
 
 
     }
 
     @Override
     public void onClick(View view) {
-        LinearLayout layout;
-
+//        LinearLayout layout;
+//
         switch (view.getId()) {
 
-            case R.id.sort:
-                final int selectedId = radioGroup.getCheckedRadioButtonId();
-
-                layout = findViewById(R.id.myView);
-                layout.removeAllViews();
-                //sort by type
-                Arrays.sort(m_data, new Comparator<ShopData>() {
-                    @Override
-                    public int compare(ShopData shopData, ShopData t1) {
-                        if (selectedId == R.id.sortName) {
-                            return shopData.m_name.compareTo(t1.m_name);
-                        } else if (selectedId == R.id.sortCost) {
-                            return shopData.m_cost - t1.m_cost;
-                        }
-                        else {
-                            return shopData.m_date.compareTo(t1.m_date);
-                        }
-                    }
-                });
-                Thread load = new Thread(new Runnable()
-                {
-                    @Override
-                    public void run()
-                    {
-                        LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
-                        for (int i = 0; i < m_data.length; ++i) {
-                            if (m_data[i].m_purchased) {
-                                continue;
-                            }
-
-                            final View myShopItem = inflater.inflate(R.layout.shop_item, null);
-                            final int tmp = i;
-
-                            View.OnClickListener click = new View.OnClickListener() {
-                                public int id = tmp;
-                                @Override
-
-                                public void onClick(View v)
-                                {
-                                    ScrollingActivity.instance.ShopClicked(v,id);
-
-                                }
-
-                            };
-
-                            Button textButton = myShopItem.findViewById(R.id.button0);
-                            textButton.setText(m_data[i].m_name);
-                            ImageButton imageButton = myShopItem .findViewById(R.id.imageButton0);
-                            imageButton.setImageResource(m_data[i].m_imageResource) ;
-                            imageButton.setOnClickListener(click);
-
-                            final LinearLayout layout =findViewById(R.id.myView);
-                            ScrollingActivity.instance.runOnUiThread(new Runnable(){
-                                @Override
-                                public void run(){
-                                    layout.addView(myShopItem);
-                                }
-
-                            });
-                        }
-
-
-                    }
-
-                });
-                load.start() ;
-                break;
-
+//            case R.id.sort:
+//                final int selectedId = radioGroup.getCheckedRadioButtonId();
+//
+//                layout = findViewById(R.id.myView);
+//                layout.removeAllViews();
+//                sort by type
+//                Arrays.sort(m_data, new Comparator<ShopData>() {
+//                    @Override
+//                    public int compare(ShopData shopData, ShopData t1) {
+//                        if (selectedId == R.id.sortName) {
+//                            return shopData.m_name.compareTo(t1.m_name);
+//                        } else if (selectedId == R.id.sortCost) {
+//                            return shopData.m_cost - t1.m_cost;
+//                        }
+//                        else {
+//                            return shopData.m_date.compareTo(t1.m_date);
+//                        }
+//                    }
+//                });
+//                Thread load = new Thread(new Runnable()
+//                {
+//                    @Override
+//                    public void run()
+//                    {
+//                        LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
+//                        for (int i = 0; i < m_data.size(); ++i) {
+//
+//                            Item item_ = db.itemDao().findByName(m_data.get(i).m_name);
+//                            if (item_ != null && item_.itempurchased) {
+//                                continue;
+//                            }
+//
+//                            final View myShopItem = inflater.inflate(R.layout.shop_item, null);
+//                            final int tmp = i;
+//
+//                            View.OnClickListener click = new View.OnClickListener() {
+//                                public int id = tmp;
+//                                @Override
+//
+//                                public void onClick(View v)
+//                                {
+//                                    ScrollingActivity.instance.ShopClicked(v,id);
+//
+//                                }
+//
+//                            };
+//
+//                            Button textButton = myShopItem.findViewById(R.id.button0);
+//                            textButton.setText(m_data.get(i).m_name);
+//                            ImageButton imageButton = myShopItem .findViewById(R.id.imageButton0);
+//                            imageButton.setImageResource(m_data.get(i).m_imageResource) ;
+//                            imageButton.setOnClickListener(click);
+//
+//                            final LinearLayout layout =findViewById(R.id.myView);
+//                            ScrollingActivity.instance.runOnUiThread(new Runnable(){
+//                                @Override
+//                                public void run(){
+//                                    layout.addView(myShopItem);
+//                                }
+//
+//                            });
+//                        }
+//
+//
+//                    }
+//
+//                });
+//                load.start() ;
+//                break;
+//
             case R.id.log_in:
                 Intent intent1 = new Intent(this, LoginActivity.class);
                 startActivity(intent1);
@@ -387,16 +483,29 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
                 @Override
                 public void onClick(View v) {
                     int id = ScrollingActivity.instance.customDialog.id;
-                    if (ScrollingActivity.instance.SeeMoney() >= ScrollingActivity.instance.m_data[id].m_cost)
+                    if (ScrollingActivity.instance.SeeMoney() >= ScrollingActivity.instance.m_data.get(id).m_cost)
                     {
                         int layoutId = ScrollingActivity.instance.customDialog.layoutIndex;
 
-                        ScrollingActivity.instance.m_data[id].m_purchased = true;
+                        ScrollingActivity.instance.m_data.get(id).m_purchased = true;
 
                         LinearLayout layout = ((Activity)m_context).findViewById(R.id.myView);
                         layout.removeViewAt(layoutId);
 
-                        ScrollingActivity.instance.AddMoney(-ScrollingActivity.instance.m_data[id].m_cost);
+                        ScrollingActivity.instance.AddMoney(-ScrollingActivity.instance.m_data.get(id).m_cost);
+
+                        final Item tmp = new Item();
+                        tmp.thename = ScrollingActivity.instance.m_data.get(id).m_name;
+                        tmp.itemcost = ScrollingActivity.instance.m_data.get(id).m_cost;
+                        tmp.itempurchased = true;
+
+                        Thread save = new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                ScrollingActivity.instance.db.itemDao().insertAll(tmp);
+                            }
+                        });
+                        save.start();
                     }
                     dismiss();
                 }
@@ -411,30 +520,21 @@ public class ScrollingActivity extends AppCompatActivity implements View.OnClick
             SetDetails();
 
 
-//            no.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View v) {
-//                    dismiss();
-//                }
-//            });
-//
-//            SetDetails();
-
 
         }
         private void SetDetails()
         {
             TextView title = this.findViewById(R.id.name);
-            title.setText(ScrollingActivity.instance.m_data[id].m_name);
+            title.setText(ScrollingActivity.instance.m_data.get(id).m_name);
 
             TextView  description = this.findViewById(R.id.description);
-            description.setText(ScrollingActivity.instance.m_data[id].m_description);
+            description.setText(ScrollingActivity.instance.m_data.get(id).m_description);
 
             TextView price = this.findViewById(R.id.price);
-            price.setText("$" + ScrollingActivity.instance.m_data[id].m_cost);
+            price.setText("$" + ScrollingActivity.instance.m_data.get(id).m_cost);
 
             ImageView image = this.findViewById(R.id.itemImage);
-            image.setImageResource(ScrollingActivity.instance.m_data[id].m_imageResource);
+            image.setImageResource(ScrollingActivity.instance.m_data.get(id).m_imageResource);
         }
 
         public void Show(int index, int lIndex)

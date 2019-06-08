@@ -1,5 +1,6 @@
 package com.example.shopping;
 
+import android.arch.persistence.room.Room;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -12,12 +13,15 @@ import android.widget.Toast;
 public class LoginActivity extends AppCompatActivity implements View.OnClickListener {
     private Button login, cancel,register;
     private EditText inputName, inputPassword;
+    public static LoginActivity instance = null;
 
-    private SharedPreferences preferences;
-    private SharedPreferences.Editor editor;
+//    private SharedPreferences preferences;
+//    private SharedPreferences.Editor editor;
+    public AppDatabase db = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        instance = this;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
@@ -28,10 +32,14 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         inputName = findViewById(R.id.input_name);
         inputPassword = findViewById(R.id.input_pw);
 
-        preferences = getSharedPreferences("UserInfo", MODE_PRIVATE);
-        editor = preferences.edit();
+//        db = Room.databaseBuilder(this, AppDatabase.class,
+//                "itemDatabase").build();
+        db = ScrollingActivity.instance.db;
 
-        editor.putString("admin", "123");
+//        preferences = getSharedPreferences("UserInfo", MODE_PRIVATE);
+//        editor = preferences.edit();
+
+//        editor.putString("admin", "123");
         login.setOnClickListener(this);
         register.setOnClickListener(this);
         cancel.setOnClickListener(this);
@@ -40,34 +48,54 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
 
     @Override
     public void onClick(View v) {
-        String name = inputName.getText().toString().trim();
-        String password = inputPassword.getText().toString().trim();
+        final String name = inputName.getText().toString().trim();
+        final String password = inputPassword.getText().toString().trim();
+//        UserInfo userInfo_ = db.userInfoDao().findByName(name);
         switch (v.getId()) {
-            case R.id.login:
-                if (preferences.contains(name) && password.equals(preferences.getString(name, null))) {
 
-                    Toast.makeText(this, "logged in", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(this, ScrollingActivity.class);
-                    intent.putExtra("signed",true);
-                    startActivity(intent);
-                    finish();
-                } else {
-                    Toast.makeText(this, "login failed", Toast.LENGTH_SHORT).show();
-                }
+            case R.id.login:
+                Thread verify = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        UserInfo userInfo_ = db.userInfoDao().findByName(name);
+                        if (userInfo_ != null && password.equals(userInfo_.password)) {
+//                            Toast.makeText(LoginActivity.instance, "Logged In", Toast.LENGTH_LONG).show();
+//                            Intent intent = new Intent(LoginActivity.instance, ScrollingActivity.class);
+//                            intent.putExtra("signed", true);
+//                            startActivity(intent);
+                        } else {
+//                            Toast.makeText(LoginActivity.instance, "Login Failed", Toast.LENGTH_SHORT).show();
+                        }
+
+                    }
+                });
+                verify.start();
                 break;
+
             case R.id.register:
-                if (preferences.contains(name)) {
-                    Toast.makeText(this, "Account already exists", Toast.LENGTH_SHORT).show();
-                } else {
-                    editor.putString(name, password);
-                    editor.commit();
-                    Toast.makeText(this, "Register success", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(this, ScrollingActivity.class);
-                    intent.putExtra("signedIn",true);
-                    startActivity(intent);
-                    finish();
-                }
+                Thread register = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        UserInfo userInfo_ = db.userInfoDao().findByName(name);
+                        if (userInfo_ != null) {
+//                            Toast.makeText(LoginActivity.instance, "Account already exists", Toast.LENGTH_SHORT).show();
+                        } else {
+                            final UserInfo tmp = new UserInfo();
+                            tmp.username = name;
+                            tmp.password = password;
+                            db.userInfoDao().insertAll(tmp);
+
+//                            Toast.makeText(LoginActivity.instance, "Register success", Toast.LENGTH_SHORT).show();
+//                            Intent intent = new Intent(LoginActivity.this, ScrollingActivity.class);
+//                            intent.putExtra("signedIn",true);
+//                            startActivity(intent);
+//                            finish();
+                        }
+                    }
+                });
+                register.start();
                 break;
+
             case R.id.cancel:
                 finish();
         }
